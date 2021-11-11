@@ -1,4 +1,6 @@
 import sys
+import numpy as np
+
 
 def main():
     args = sys.argv[1:]
