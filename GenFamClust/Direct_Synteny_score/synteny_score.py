@@ -7,6 +7,39 @@ import multiprocessing as mp
 def main(argv):
     synteny_score()
 
+def get_neighberhood(gene, list, k):
+    neighberhood = [gene]
+
+    list_size = len(list)
+    idx = 0
+    for el in list:
+        if el[2] != gene:
+            #found correct gene, now get whole neighberhood k.
+            idx += 1
+        else:
+            break
+
+    #print("found gene in list @", idx)
+    #print(list[idx])
+
+    tmp1 = idx
+    tmp2 = idx
+    for i in range(1, k+1):
+        #left side neighberhood of gene
+        tmp1 -= 1
+        if tmp1 < 0:
+            break
+        neighberhood.append(list[tmp1][2])
+
+    for i in range(1, k+1):
+        # right side neighberhood of gene
+        tmp2 += 1
+        if tmp2 > list_size-1:
+            break
+        neighberhood.append(list[tmp2][2])
+
+    return neighberhood
+
 
 def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_locs.txt'):
 
@@ -69,8 +102,11 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
         for lines in file:
             lines = lines.strip().split()
             total += 1
-            #if (lines[0], lines[1]) in dict or (lines[1], lines[0]) in dict:
-            #    #if either (A, B) OR (B, A) already exist in dict no need to try and adding it, so skip if-statement below.
+            ###
+            # the commented away if-statement checks if there already exist (A, B) OR (B, A) in dict.
+            # (might be unneccessary to keep all those extra datapoints in memory)
+            ###
+            # if (lines[0], lines[1]) in dict or (lines[1], lines[0]) in dict:
             #    continue
             if lines[0] != lines[1]:
                 dict[(lines[0], lines[1])] = lines[2]
@@ -82,16 +118,13 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     print("Total elements in file: ", total)
     print("Total elements in DICT: ", inDict)
 
+    for i in range(21040, 21064):
+        print(Synteny1[i])
 
-    #one = NC_pairs[1]
-    #gene1 = one[0]
-    #gene2 = one[1]
-    #NC_Value = one[2]
 
-    #print("One line: ", one)
-    #print("type of gene1: ", type(gene1))
-    #print("type of gene2: ", type(gene2))
-    #print("type of NC_Value: ", type(NC_Value))
+    neighberhood = get_neighberhood('Q01534', Synteny1, 5)
+    print(neighberhood)
+
 
     # calculation
 
