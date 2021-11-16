@@ -41,7 +41,7 @@ def get_neighberhood(gene, list, k):
     return neighberhood
 
 
-def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_locs.txt'):
+def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_locs.txt', k=5):
 
     #querySyntenyfile
     #gene_order = np.loadtxt(querySyntenyFile1, dtype={'names': ('contig', 'gene'), 'formats': ('U8', 'U6')})
@@ -118,16 +118,46 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     print("Total elements in file: ", total)
     print("Total elements in DICT: ", inDict)
 
-    for i in range(21040, 21064):
-        print(Synteny1[i])
 
-
-    neighberhood = get_neighberhood('Q01534', Synteny1, 5)
-    print(neighberhood)
-
+    SyS_values = {}
+    SyS_size = 0
 
     # calculation
+    t2 = time.process_time()
+    for SyntenyIndex1 in range(len(Synteny1)):
+        Synteny1Neighberhood = []
+        if SyntenyIndex1-k < 0:
+            Synteny1Neighberhood = Synteny1[0:SyntenyIndex1+k+1][2]
+        elif SyntenyIndex1+k >= len(Synteny1):
+            Synteny1Neighberhood = Synteny1[SyntenyIndex1-k:][2]
+        else:
+            Synteny1Neighberhood = Synteny1[SyntenyIndex1-k:SyntenyIndex1+k+1][2]
 
+        for SyntenyIndex2 in range(len(Synteny2)):
+            Synteny2Neighberhood = []
+            if SyntenyIndex2 - k < 0:
+                Synteny2Neighberhood = Synteny2[0:SyntenyIndex2 + k + 1][2]
+            elif SyntenyIndex2 + k >= len(Synteny2):
+                Synteny2Neighberhood = Synteny2[SyntenyIndex2-k:][2]
+            else:
+                Synteny2Neighberhood = Synteny2[SyntenyIndex2-k:SyntenyIndex2+k+1][2]
+
+            max_nc = 0
+            for neighbor1 in Synteny1Neighberhood:
+                for neighbor2 in Synteny2Neighberhood:
+                    if (neighbor1, neighbor2) in dict:
+                        NC_val = float(dict[(neighbor1, neighbor2)])
+                        if NC_val > max_nc:
+                            max_nc = NC_val
+
+            if max_nc > 0:
+                SyS_values[(Synteny1[SyntenyIndex1][2], Synteny2[SyntenyIndex2][2])] = max_nc
+                SyS_size += 1
+
+            #if SyS_size % 1000 == 0:
+            #    print(SyS_size)
+    elapsed_time = time.process_time() - t1
+    print("Sekunder: ", elapsed_time)
 
 
 if __name__ == "__main__":
