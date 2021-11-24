@@ -16,11 +16,11 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
         averages[key[0]] = [0, 0.0]
         averages[key[1]] = [0, 0.0]
 
-    count = 0
+    #count = 0
     with open(sys_values, 'r') as file:
         for lines in file:
-            count += 1
-            lines = lines.strip().split()
+            #count += 1
+            lines = lines.split()
             if lines[0] in averages:
                 count = averages[lines[0]][0] + 1
                 avg = averages[lines[0]][1] + float(lines[2])
@@ -30,8 +30,8 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
                 avg = averages[lines[1]][1] + float(lines[2])
                 averages[lines[1]] = [count, avg]
 
-            if count % 1000000 == 0:
-                print(count)
+            #if count % 1000000 == 0:
+            #    print(count)
 
     return averages
 
@@ -43,7 +43,7 @@ def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
 
         with open(nc_file) as file:
             for lines in file:
-                lines = lines.strip().split()
+                lines = lines.split()
                 if float(lines[2]) > beta:
                     f.write(lines[0] + "\t" + lines[1] + "\t" + lines[2] + "\n")
                     count += 1
@@ -76,7 +76,7 @@ def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
             if alist[idx][0] == alist[gene_idx][0]:
                 neighberhood.append(alist[idx][1])
     except:
-        print("Aome error occured in calc_neighberhood.")
+        print("Some error occured in calc_neighberhood.")
 
     return neighberhood
 
@@ -93,7 +93,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     totalF = 0
     with open(querySyntenyFile1) as file:
         for lines in file:
-            lines = lines.strip().split()
+            lines = lines.split()
             totalF += 1
             if len(lines) == 3:
                 # only keep the lines where there exist values in all three columns
@@ -119,7 +119,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
 
     with open(querySyntenyFile2) as file:
         for lines in file:
-            lines = lines.strip().split()
+            lines = lines.split()
             totalS += 1
             if len(lines) == 3:
                 # only keep the lines where there exist values in all three columns
@@ -151,7 +151,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     total = 0
     with open(NC_scores) as file:
         for lines in file:
-            lines = lines.strip().split()
+            lines = lines.split()
             total += 1
             ###
             # the commented away if-statement checks if there already exist (A, B) OR (B, A) in dict.
@@ -159,9 +159,9 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
             ###
             # if (lines[0], lines[1]) in dict or (lines[1], lines[0]) in dict:
             #    continue
-            if lines[0] != lines[1]:
-                dict[(lines[0], lines[1])] = lines[2]
-                inDict += 1
+            #if lines[0] != lines[1]:
+            dict[(lines[0], lines[1])] = float(lines[2])
+            inDict += 1
 
     print("finished loading NC_pairs...")
     elapsed_time = time.process_time() - t1
@@ -189,12 +189,12 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
 
     if calc_sys:
         SyS_size = 0
-        Sys_non_matches = 0
+        #Sys_non_matches = 0
 
         print("starting SyS calculation...")
         t2 = time.process_time()
 
-        f = open('result1.txt', 'a')
+        f = open('SyS_scores.txt', 'a')
 
         for SyntenyIndex1 in range(len(Synteny1)):
 
@@ -232,19 +232,19 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
                     for neighbor2 in calc_neighberhood(Synteny2, SyntenyIndex2, idx_from2,
                                                        idx_to2):  # Synteny2[idx_from2:idx_to2].tolist():
                         if (neighbor1, neighbor2) in dict:
-                            NC_val = float(dict[(neighbor1, neighbor2)])
+                            NC_val = dict[(neighbor1, neighbor2)]
                             if NC_val > max_nc:
                                 max_nc = NC_val
-                        else:
-                            Sys_non_matches += 1
+                        #else:
+                        #    Sys_non_matches += 1
 
                 if max_nc > 0:
                     f.write(Synteny1[SyntenyIndex1][1] + "\t" + Synteny2[SyntenyIndex2][1] + "\t" + str(max_nc) + "\n")
                     # SyS_values[(Synteny1[SyntenyIndex1], Synteny2[SyntenyIndex2])] = max_nc
                     SyS_size += 1
 
-                if SyS_size % 1000 == 0:
-                    print(SyS_size, " : ", Sys_non_matches)
+                if SyS_size % 10000000 == 0:
+                    print(SyS_size)
 
         # ----------------------------------------------
 
@@ -252,28 +252,32 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
         elapsed_time = time.process_time() - t2
         print("Sekunder: ", elapsed_time)
         print("Nr SyS values calculated: ", SyS_size)
-        print("SyS_pairs misses in NC values: ", Sys_non_matches)
+        #print("SyS_pairs misses in NC values: ", Sys_non_matches)
+
+    #exit(0)
 
     ###
     # Synteny Correlation score calculation
     ###
 
     # calculate nc_hits_over_beta
-    # extract_nc_over_beta()
+
+    #extract_nc_over_beta()
+
     nc_scores_over_beta = {}
 
     with open('nc_over_beta.txt', 'r') as file:
         for lines in file:
-            lines = lines.strip().split()
-            nc_scores_over_beta[(lines[0], lines[1])] = lines[2]
+            lines = lines.split()
+            nc_scores_over_beta[(lines[0], lines[1])] = float(lines[2])
 
     t4 = time.process_time()
 
     print("Loading Sys data into memory...")
     with open('result1.txt', 'r') as file:
         for lines in file:
-            lines = lines.strip().split()
-            SyS_values[(lines[0], lines[1])] = lines[2]
+            lines = lines.split()
+            SyS_values[(lines[0], lines[1])] = float(lines[2])
 
     elapsed_time = time.process_time() - t4
     print("Took: ", elapsed_time, "to load sys data into ram memory")
@@ -290,34 +294,41 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     f = open('result_syc.txt', 'a')
     print("Starting SyC calculation.")
     t5 = time.process_time()
-    for idx1 in range(len(Synteny1)):
-        for idx2 in range(len(Synteny2)):
-            if(Synteny1[idx1][1], Synteny2[idx2][1]) in nc_scores_over_beta:
-                h = get_nc_hits(nc_scores_over_beta, Synteny1[idx1][1], Synteny2[idx2][1])
-                val = SyS_values[(Synteny1[idx1][1], Synteny2[idx2][1])]
 
-                if h:
-                    top = 0
-                    bottom_l = 0
-                    bottom_r = 0
-                    for el in h:
-                        top += (float(SyS_values[(Synteny1[idx1][1], el)]) - averages[Synteny1[idx1][1]][1]) * \
-                               (float(SyS_values[(Synteny2[idx2][1], el)]) - averages[Synteny2[idx2][1]][1])
-                        bottom_l += (float(SyS_values[(Synteny1[idx1][1], el)]) - averages[Synteny1[idx1][1]][1])**2
-                        bottom_r += (float(SyS_values[(Synteny2[idx2][1], el)]) - averages[Synteny2[idx2][1]][1])**2
-                    val = top / math.sqrt(bottom_l * bottom_r)
-                #syc_scores.append()
-                f.write(Synteny1[idx1][1] + "\t" + Synteny2[idx2][1] + "\t" + str(val) + "\n")  # write to file
+    count = 0
+    not_found_keys = []
+    for key in nc_scores_over_beta:
+        count += 1
 
-        if idx1 % 1000 == 0:
-            print(idx1, "of ", len(Synteny1))
+        val = 0
+        try:
+            val = SyS_values[(key[0], key[1])]
+            h = get_nc_hits(nc_scores_over_beta, key[0], key[1])
+
+            top = 0
+            bottom_l = 0
+            bottom_r = 0
+            for el in h:
+                top += (SyS_values[(key[0], el)] - averages[key[0]][1]) * \
+                       (SyS_values[(key[1], el)] - averages[key[1]][1])
+                bottom_l += (SyS_values[(key[0], el)] - averages[key[0]][1])**2
+                bottom_r += (SyS_values[(key[1], el)] - averages[key[1]][1])**2
+            val = top / math.sqrt(bottom_l * bottom_r)
+
+        except:
+            not_found_keys.append([key[0], key[1]])
+
+        #syc_scores.append()
+        f.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
+
+        if count % 1000 == 0:
+            print(count, "of ", len(nc_scores_over_beta))
+
     f.close()
     elapsed_time = time.process_time() - t5
     print("SyC calc. complete. took: ", elapsed_time)
-
-
-
-
+    print("#Nr SyC entries:", count)
+    print("#mis pairs not in SyS:", len(not_found_keys))
 
 
 if __name__ == "__main__":
