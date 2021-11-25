@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import time
-#import multiprocessing as mp
+# import multiprocessing as mp
 import math
 
 
@@ -16,21 +16,21 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
         averages[key[0]] = [0, 0.0]
         averages[key[1]] = [0, 0.0]
 
-    #count = 0
+    # count = 0
     with open(sys_values, 'r') as file:
         for lines in file:
-            #count += 1
+            # count += 1
             lines = lines.split()
             if lines[0] in averages:
                 count = averages[lines[0]][0] + 1
-                avg = averages[lines[0]][1] + float(lines[2])
-                averages[lines[0]] = [count, avg]
+                total = averages[lines[0]][1] + float(lines[2])
+                averages[lines[0]] = [count, total]
             if lines[1] in averages:
                 count = averages[lines[1]][0] + 1
-                avg = averages[lines[1]][1] + float(lines[2])
-                averages[lines[1]] = [count, avg]
+                total = averages[lines[1]][1] + float(lines[2])
+                averages[lines[1]] = [count, total]
 
-            #if count % 1000000 == 0:
+            # if count % 1000000 == 0:
             #    print(count)
 
     return averages
@@ -55,17 +55,43 @@ def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
         print("Unable to extract nc_over_beta values to new file.")
 
 
-def get_nc_hits(nc_over_beta, gene1, gene2):
+def help_get_nchits(nc_hits_over_beta, gene, sys_values, help_dict):
+
+    alist = []
+    for keys in nc_hits_over_beta:
+        if keys[0] == gene:
+            if (keys[0], keys[1]) in sys_values:
+                alist.append(keys[1])
+
+    help_dict[gene] = alist
+
+def get_nc_hits(nc_over_beta, gene1, gene2, sys_values, help_nchits):
     nchits1 = []
     nchits2 = []
 
-    for el in nc_over_beta:  # (gene1, gene2) = 1.11
-        if gene1 == el[0]:
-            nchits1.append(el[1])
-        if gene2 == el[0]:
-            nchits2.append(el[1])
+    if gene1 in help_nchits:
+        nchits1 = help_nchits[gene1]
+    else:
+        help_get_nchits(nc_over_beta, gene1, sys_values, help_nchits)
+        nchits1 = help_nchits[gene1]
 
-    return list(set(nchits1) & set(nchits2))
+    if gene2 in help_nchits:
+        nchits2 = help_nchits[gene2]
+    else:
+        help_get_nchits(nc_over_beta, gene2, sys_values, help_nchits)
+        nchits2 = help_nchits[gene2]
+
+    # for el in nc_over_beta:  # (gene1, gene2) = 1.11  #(gene1, el[1]) OR (gene2, el[1])
+    #    if gene1 == el[0]:
+    #        if (gene1, el[1]) in sys_values:
+    #            nchits1.append(el[1])
+    #    if gene2 == el[0]:
+    #        if (gene2, el[1]) in sys_values:
+    #            nchits2.append(el[1])
+    #
+    # return list(set(nchits1).intersection(nchits2))
+
+    return list(set(nchits1).intersection(nchits2))
 
 
 def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
@@ -159,7 +185,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
             ###
             # if (lines[0], lines[1]) in dict or (lines[1], lines[0]) in dict:
             #    continue
-            #if lines[0] != lines[1]:
+            # if lines[0] != lines[1]:
             dict[(lines[0], lines[1])] = float(lines[2])
             inDict += 1
 
@@ -177,10 +203,9 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     # for x in range(10):
     #    print(Synteny2[x])
 
-    #exit(0)
+    # exit(0)
 
     SyS_values = {}
-
 
     ### calculation without numpy implementation ###
     # ----------------------------------------------
@@ -189,7 +214,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
 
     if calc_sys:
         SyS_size = 0
-        #Sys_non_matches = 0
+        # Sys_non_matches = 0
 
         print("starting SyS calculation...")
         t2 = time.process_time()
@@ -235,7 +260,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
                             NC_val = dict[(neighbor1, neighbor2)]
                             if NC_val > max_nc:
                                 max_nc = NC_val
-                        #else:
+                        # else:
                         #    Sys_non_matches += 1
 
                 if max_nc > 0:
@@ -252,9 +277,13 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
         elapsed_time = time.process_time() - t2
         print("Sekunder: ", elapsed_time)
         print("Nr SyS values calculated: ", SyS_size)
-        #print("SyS_pairs misses in NC values: ", Sys_non_matches)
+        # print("SyS_pairs misses in NC values: ", Sys_non_matches)
 
-    #exit(0)
+        del Synteny1  # free some space
+        del Synteny2  # free some space
+        del dict
+
+    # exit(0)
 
     ###
     # Synteny Correlation score calculation
@@ -262,7 +291,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
 
     # calculate nc_hits_over_beta
 
-    #extract_nc_over_beta()
+    # extract_nc_over_beta()
 
     nc_scores_over_beta = {}
 
@@ -272,7 +301,6 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
             nc_scores_over_beta[(lines[0], lines[1])] = float(lines[2])
 
     t4 = time.process_time()
-
     print("Loading Sys data into memory...")
     with open('result1.txt', 'r') as file:
         for lines in file:
@@ -289,46 +317,98 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     print("Finished average SyS values calculation, took: ", elapsed_time, " seconds.\n")
     print("Size of averages is: ", len(averages))
 
+    #print("size of SyS_values: ", sys.getsizeof(SyS_values))
+    #print("size of Averages: ", sys.getsizeof(averages))
+    #print("size of nc_scores_over_beta: ", sys.getsizeof(nc_scores_over_beta))
+
+
     syc_scores = []
 
-    f = open('result_syc.txt', 'a')
+    f = open('first100k_np_syc_scores.txt', 'a')
     print("Starting SyC calculation.")
     t5 = time.process_time()
-
+    g = open('missed_pairs_syc.txt', 'a')
+    k = open('missing_pairs_h_sys.txt', 'a')
     count = 0
-    not_found_keys = []
+    #count_pairs = 0
+    #count_h_pairs = 0
+    #not_found_keys = []
+    help_dict = {}
     for key in nc_scores_over_beta:
+
+        #if key in SyS_values:
+        h = get_nc_hits(nc_scores_over_beta, key[0], key[1], SyS_values, help_dict)
+
+        top_l = np.zeros(len(h))
+        top_r = np.zeros(len(h))
+        bottom_l = np.zeros(len(h))
+        bottom_r = np.zeros(len(h))
+        idx = 0
+        #print("H: ", h, "\n")
+        for i in h:
+            top_l[idx] = SyS_values[(key[0], i)] - averages[key[0]][1] / averages[key[0]][0]
+            top_r[idx] = SyS_values[(key[1], i)] - averages[key[1]][1] / averages[key[1]][0]
+            bottom_l[idx] = (SyS_values[(key[0], i)] - averages[key[0]][1] / averages[key[0]][0]) ** 2
+            bottom_r[idx] = (SyS_values[(key[1], i)] - averages[key[1]][1] / averages[key[1]][0]) ** 2
+            idx += 1
+        #print("top_l: ", top_l, "\n")
+        #print("top_r: ", top_r, "\n")
+        #print("bottom_l: ", bottom_l, "\n")
+        #print("bottom_r: ", bottom_r, "\n")
+
+        if len(h) != 0:
+            result = np.dot(top_l, top_r) / math.sqrt(np.sum(bottom_l) * np.sum(bottom_r))
+            f.write(key[0] + "\t" + key[1] + "\t" + str(result) + "\n")  # write to file
+
+        #print(np.dot(top_l, top_r), " / ", math.sqrt(np.sum(bottom_l) * np.sum(bottom_r)))
+        #else:
+        #    count_pairs += 1
+
         count += 1
 
-        val = 0
-        try:
-            val = SyS_values[(key[0], key[1])]
-            h = get_nc_hits(nc_scores_over_beta, key[0], key[1])
+        #val = 0
+        #try:
+        #    val = SyS_values[(key[0], key[1])]
+        #    h = get_nc_hits(nc_scores_over_beta, key[0], key[1])
 
-            top = 0
-            bottom_l = 0
-            bottom_r = 0
-            for el in h:
-                top += (SyS_values[(key[0], el)] - averages[key[0]][1]) * \
-                       (SyS_values[(key[1], el)] - averages[key[1]][1])
-                bottom_l += (SyS_values[(key[0], el)] - averages[key[0]][1])**2
-                bottom_r += (SyS_values[(key[1], el)] - averages[key[1]][1])**2
-            val = top / math.sqrt(bottom_l * bottom_r)
+        #    count_pairs += 1
 
-        except:
-            not_found_keys.append([key[0], key[1]])
+        #    top = 0
+        #    bottom_l = 0
+        #    bottom_r = 0
+        #    for el in h:
+        #        if (key[0], el) in SyS_values and (key[1], el) in SyS_values:
+        #            top += (SyS_values[(key[0], el)] - averages[key[0]][1]) * \
+        #                   (SyS_values[(key[1], el)] - averages[key[1]][1])
+        #            bottom_l += (SyS_values[(key[0], el)] - averages[key[0]][1]) ** 2
+        #            bottom_r += (SyS_values[(key[1], el)] - averages[key[1]][1]) ** 2
+        #        else:
+        #            count_h_pairs += 1
+        #            k.write(key[0] + "\t" + el + "\n")  # write to file
 
-        #syc_scores.append()
-        f.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
+        #    #val = top / math.sqrt(bottom_l * bottom_r)
+        #except:
+        #    #not_found_keys.append([key[0], key[1]])
+        #    g.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
 
-        if count % 1000 == 0:
+        # syc_scores.append()
+        #f.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
+
+        if count % 500000 == 0:
             print(count, "of ", len(nc_scores_over_beta))
+            print("size of help_dict: ", sys.getsizeof(help_dict))
 
     f.close()
+    g.close()
+    k.close()
+
     elapsed_time = time.process_time() - t5
     print("SyC calc. complete. took: ", elapsed_time)
     print("#Nr SyC entries:", count)
-    print("#mis pairs not in SyS:", len(not_found_keys))
+    print("Total size of help_dict: ", sys.getsizeof(help_dict))
+    #print("#mis pairs not in SyS:", len(not_found_keys))
+
+
 
 
 if __name__ == "__main__":
