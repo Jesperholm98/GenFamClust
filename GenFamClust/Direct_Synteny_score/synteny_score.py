@@ -3,6 +3,7 @@ import numpy as np
 import time
 # import multiprocessing as mp
 import math
+import os
 
 
 def main(argv):
@@ -107,8 +108,29 @@ def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
     return neighberhood
 
 
+def pre_calc_neighborhoods(synteny1, synteny2, k):
+    gene_neighborhoods1 = {}
+    gene_neighborhoods2 = {}
+
+    for idx, gene in enumerate(synteny1):
+        idx_from1 = max(idx - k, 0)
+        idx_to1 = min(idx + k + 1, len(synteny1))
+
+        neighborhood = calc_neighberhood(synteny1, idx, idx_from1, idx_to1)
+        gene_neighborhoods1[gene[1]] = neighborhood
+
+    for idx, gene in enumerate(synteny2):
+        idx_from2 = max(idx - k, 0)
+        idx_to2 = min(idx + k + 1, len(synteny2))
+
+        neighborhood = calc_neighberhood(synteny2, idx, idx_from2, idx_to2)
+        gene_neighborhoods2[gene[1]] = neighborhood
+
+    return gene_neighborhoods1, gene_neighborhoods2
+
+
 def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_locs.txt', k=5,
-                  beta=0.5):
+                  beta=0.3):
     # querySyntenyfile
     # gene_order = np.loadtxt(querySyntenyFile1, dtype={'names': ('contig', 'gene'), 'formats': ('U8', 'U6')})
 
@@ -163,14 +185,11 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     print("Synteny2 has: ", len(Synteny2), " elements.\n")
     # ----------------------------------
 
-    # convert into numpy array
-    # Synteny1 = np.array(Synteny1)
-    # Synteny2 = np.array(Synteny2)
 
     # load NC file into a dict.
     print("start loading NC_pairs...")
     t1 = time.process_time()
-    dict = {}
+    nc_dict = {}
     # NC_pairs = np.loadtxt(NC_scores, dtype={'names': ('gene1', 'gene2', 'NC_score'), 'formats': ('U6', 'U6', 'f8')})
 
     inDict = 0
@@ -186,7 +205,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
             # if (lines[0], lines[1]) in dict or (lines[1], lines[0]) in dict:
             #    continue
             # if lines[0] != lines[1]:
-            dict[(lines[0], lines[1])] = float(lines[2])
+            nc_dict[(lines[0], lines[1])] = float(lines[2])
             inDict += 1
 
     print("finished loading NC_pairs...")
@@ -195,93 +214,45 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
     print("Total elements in file: ", total)
     print("Total elements in DICT: ", inDict, "\n")
 
-    # print("Synteny1: \n")
-    # for x in range(10):
-    #    print(Synteny1[x])
-
-    # print("\nSynteny2: \n")
-    # for x in range(10):
-    #    print(Synteny2[x])
-
-    # exit(0)
-
     SyS_values = {}
 
-    ### calculation without numpy implementation ###
-    # ----------------------------------------------
+    print("Starting pre-calc for SyS...")
 
-    calc_sys = False
+    #pre-calc neighborhoods
+    t = time.process_time()
+    synteny1_neighbors, synteny2_neighbors = pre_calc_neighborhoods(Synteny1, Synteny2, k)
+    elapsed_time = time.process_time() - t
+    print("Finished pre-calc SyS, took: ", elapsed_time)
 
-    if calc_sys:
-        SyS_size = 0
-        # Sys_non_matches = 0
+    print("Starting SyS calculation...")
+    f = open('./../Data/test_sys.txt', 'a')
+    t = time.process_time()
+    for gene1 in Synteny1:
+        for gene2 in Synteny2:
 
-        print("starting SyS calculation...")
-        t2 = time.process_time()
+            neighborhood1 = synteny1_neighbors[gene1[1]]
+            neighborhood2 = synteny2_neighbors[gene2[1]]
+            nc_max = 0
 
-        f = open('SyS_scores.txt', 'a')
+            for a in neighborhood1:
+                for b in neighborhood2:
+                    if (a, b) in nc_dict:
+                        nc_max = max(nc_dict[(a, b)], nc_max)
 
-        for SyntenyIndex1 in range(len(Synteny1)):
+            if nc_max > 0:
+                f.write(gene1[1] + "\t" + gene2[1] + "\t" + str(nc_max) + "\n")
+                #SyS_values[(gene1[1], gene2[1])] = nc_max
+    f.close()
 
-            idx_from1 = SyntenyIndex1 - k
-            idx_to1 = SyntenyIndex1 + k + 1
-            if SyntenyIndex1 - k < 0:
-                # Synteny1Neighberhood = Synteny1[0:SyntenyIndex1+k+1]
-                idx_from1 = 0
-            elif SyntenyIndex1 + k >= len(Synteny1):
-                # Synteny1Neighberhood = Synteny1[SyntenyIndex1-k:]
-                idx_to1 = len(Synteny1)
-            # else:
-            #    Synteny1Neighberhood = Synteny1[SyntenyIndex1-k:SyntenyIndex1+k+1]
+    elapsed_time = time.process_time() - t
+    print("finished SyS calc, took: ", elapsed_time)
 
-            for SyntenyIndex2 in range(len(Synteny2)):
-                # Synteny2Neighberhood = []
-
-                idx_from2 = SyntenyIndex2 - k
-                idx_to2 = SyntenyIndex2 + k + 1
-                if SyntenyIndex2 - k < 0:
-                    # Synteny2Neighberhood = Synteny2[0:SyntenyIndex2+k+1]
-                    idx_from2 = 0
-
-                elif SyntenyIndex2 + k >= len(Synteny2):
-                    # Synteny2Neighberhood = Synteny2[SyntenyIndex2-k:]
-                    idx_to2 = len(Synteny2)
-                # else:
-                #    Synteny2Neighberhood = Synteny2[SyntenyIndex2-k:SyntenyIndex2+k+1]
-
-                max_nc = 0
-                # for neighbor1 in Synteny1Neighberhood:
-                #    for neighbor2 in Synteny2Neighberhood:
-                for neighbor1 in calc_neighberhood(Synteny1, SyntenyIndex1, idx_from1,
-                                                   idx_to1):  # Synteny1[idx_from1:idx_to1].tolist():
-                    for neighbor2 in calc_neighberhood(Synteny2, SyntenyIndex2, idx_from2,
-                                                       idx_to2):  # Synteny2[idx_from2:idx_to2].tolist():
-                        if (neighbor1, neighbor2) in dict:
-                            NC_val = dict[(neighbor1, neighbor2)]
-                            if NC_val > max_nc:
-                                max_nc = NC_val
-                        # else:
-                        #    Sys_non_matches += 1
-
-                if max_nc > 0:
-                    f.write(Synteny1[SyntenyIndex1][1] + "\t" + Synteny2[SyntenyIndex2][1] + "\t" + str(max_nc) + "\n")
-                    # SyS_values[(Synteny1[SyntenyIndex1], Synteny2[SyntenyIndex2])] = max_nc
-                    SyS_size += 1
-
-                if SyS_size % 10000000 == 0:
-                    print(SyS_size)
-
-        # ----------------------------------------------
-
-        f.close()
-        elapsed_time = time.process_time() - t2
-        print("Sekunder: ", elapsed_time)
-        print("Nr SyS values calculated: ", SyS_size)
-        # print("SyS_pairs misses in NC values: ", Sys_non_matches)
-
-        del Synteny1  # free some space
-        del Synteny2  # free some space
-        del dict
+    #print("size(mem) of synteny1_neighbors: ", sys.getsizeof(synteny1_neighbors))
+    #print("size(mem) of synteny2_neighbors: ", sys.getsizeof(synteny2_neighbors))
+    #print("size(len) of synteny1_neighbors: ", len(synteny1_neighbors))
+    #print("size(len) of synteny2_neighbors: ", len(synteny2_neighbors))
+    #print("size(length) of SyS_values: ", len(SyS_values))
+    #print("size(mem) of synteny2_neighbors: ", sys.getsizeof(SyS_values))
 
     # exit(0)
 
@@ -291,7 +262,7 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
 
     # calculate nc_hits_over_beta
 
-    # extract_nc_over_beta()
+    extract_nc_over_beta()
 
     nc_scores_over_beta = {}
 
@@ -360,36 +331,8 @@ def synteny_score(NC_scores='nc.txt', querySyntenyFile1='human_locs.txt', queryS
             result = np.dot(top_l, top_r) / math.sqrt(np.sum(bottom_l) * np.sum(bottom_r))
             f.write(key[0] + "\t" + key[1] + "\t" + str(result) + "\n")  # write to file
 
-        #print(np.dot(top_l, top_r), " / ", math.sqrt(np.sum(bottom_l) * np.sum(bottom_r)))
-        #else:
-        #    count_pairs += 1
 
         count += 1
-
-        #val = 0
-        #try:
-        #    val = SyS_values[(key[0], key[1])]
-        #    h = get_nc_hits(nc_scores_over_beta, key[0], key[1])
-
-        #    count_pairs += 1
-
-        #    top = 0
-        #    bottom_l = 0
-        #    bottom_r = 0
-        #    for el in h:
-        #        if (key[0], el) in SyS_values and (key[1], el) in SyS_values:
-        #            top += (SyS_values[(key[0], el)] - averages[key[0]][1]) * \
-        #                   (SyS_values[(key[1], el)] - averages[key[1]][1])
-        #            bottom_l += (SyS_values[(key[0], el)] - averages[key[0]][1]) ** 2
-        #            bottom_r += (SyS_values[(key[1], el)] - averages[key[1]][1]) ** 2
-        #        else:
-        #            count_h_pairs += 1
-        #            k.write(key[0] + "\t" + el + "\n")  # write to file
-
-        #    #val = top / math.sqrt(bottom_l * bottom_r)
-        #except:
-        #    #not_found_keys.append([key[0], key[1]])
-        #    g.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
 
         # syc_scores.append()
         #f.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
@@ -422,10 +365,9 @@ def infer_homology(syc_values, nc_values):
         for lines in file:
             lines = lines.split()
             if (nc_dict[(lines[0], lines[1])]**2 + 0.25 * float(lines[2])**2 - 0.25) > 0:
-                f.write(lines[0] + "\t" + lines[1] + "\n")
+                f.write(lines[0] + "\t" + lines[1] + str(nc_dict[(lines[0], lines[1])]) + "\t" + str(float(lines[2])) + "\n")
     f.close()
     print("Done.")
-
 
 
 if __name__ == "__main__":
