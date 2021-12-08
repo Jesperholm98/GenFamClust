@@ -32,7 +32,7 @@ Now a script called NC_standalone should be installed on your computer(jag behö
 
 5) run NC module(skriptet).
 Go to the /Data folder inside GenFamClust and unpack the test data human_and_mouse by typing:
-'gunzip human_mouse_but_scores.dat.gz'
+'gunzip human_mouse_bit_scores.dat.gz'
 Now you should be able to run NC module by typing:
 'NC_standalone -f human_mouse_bit_scores.dat -o nc.txt'
 This should start the NC module with the c implementation and should take around 5-10 mins.
@@ -40,3 +40,4 @@ This should start the NC module with the c implementation and should take around
 6) Run GFC.
 You can now run the rest of the program by first moving to the /GenFamClust folder where main.py is located and then running:
 'python3 main.py 1 2'. (1 2 placeholder)
+(this will at this point just run the SyS module for testing purposes)
