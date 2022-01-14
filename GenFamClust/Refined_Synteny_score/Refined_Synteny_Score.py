@@ -2,6 +2,7 @@ import numpy as np
 import sys
 import math
 import time
+import os.path
 
 
 def help_get_nchits(nc_hits_over_beta, gene, sys_values, help_dict):
@@ -34,7 +35,7 @@ def get_nc_hits(nc_over_beta, gene1, gene2, sys_values, help_nchits):
     return list(set(nchits1).intersection(nchits2))
 
 
-def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
+def calc_average_sys_score_over_ncbeta(nc_over_beta):
     averages = {}
 
     for key in nc_over_beta:
@@ -42,7 +43,7 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
         averages[key[1]] = [0, 0.0]
 
     # count = 0
-    with open(sys_values, 'r') as file:
+    with open('./Data/sys.txt', 'r') as file:
         for lines in file:
             # count += 1
             lines = lines.split()
@@ -62,11 +63,11 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta, sys_values):
 
 
 def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
-    f = open('nc_over_beta.txt', 'a')
+    f = open('./Data/nc_over_beta.txt', 'a')
     try:
         count = 0
 
-        with open(nc_file) as file:
+        with open('./Data/' + nc_file, 'r') as file:
             for lines in file:
                 lines = lines.split()
                 if float(lines[2]) > beta:
@@ -82,28 +83,38 @@ def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
 
 def refined_synteny_score(sys_values, nc_file, beta):
 
-    extract_nc_over_beta()
+    t2 = time.process_time()
+    nc_over_beta_exist = os.path.isfile('./Data/nc_over_beta.txt')
+
+    if nc_over_beta_exist:
+        pass
+    else:
+        print("No nc_over_beta file to load from. Creating that file...")
+        extract_nc_over_beta(nc_file, beta)
 
     nc_scores_over_beta = {}
 
-    with open('nc_over_beta.txt', 'r') as file:
+    with open('./Data/nc_over_beta.txt', 'r') as file:
         for lines in file:
             lines = lines.split()
             nc_scores_over_beta[(lines[0], lines[1])] = float(lines[2])
 
-    t4 = time.process_time()
-    print("Loading Sys data into memory...")
-    with open('result1.txt', 'r') as file:
-        for lines in file:
-            lines = lines.split()
-            sys_values[(lines[0], lines[1])] = float(lines[2])
+    elapsed_time = time.process_time() - t2
+    print("took: ", elapsed_time, "to load nc_scores_over_beta.")
 
-    elapsed_time = time.process_time() - t4
-    print("Took: ", elapsed_time, "to load sys data into ram memory")
+    #t4 = time.process_time()
+    #print("Loading Sys data into memory...")
+    #with open('result1.txt', 'r') as file:
+    #    for lines in file:
+    #        lines = lines.split()
+    #        sys_values[(lines[0], lines[1])] = float(lines[2])
+#
+    #elapsed_time = time.process_time() - t4
+    #print("Took: ", elapsed_time, "to load sys data into ram memory")
 
     t3 = time.process_time()
     print("starting to calculate averages for relevant SyS values.")
-    averages = calc_average_sys_score_over_ncbeta(nc_scores_over_beta, 'result1.txt')
+    averages = calc_average_sys_score_over_ncbeta(nc_scores_over_beta)
     elapsed_time = time.process_time() - t3
     print("Finished average SyS values calculation, took: ", elapsed_time, " seconds.\n")
     print("Size of averages is: ", len(averages))
@@ -115,17 +126,16 @@ def refined_synteny_score(sys_values, nc_file, beta):
 
     syc_scores = []
 
-    f = open('first100k_np_syc_scores.txt', 'a')
+    f = open('./Data/syc.txt', 'a')
     print("Starting SyC calculation.")
     t5 = time.process_time()
-    g = open('missed_pairs_syc.txt', 'a')
-    k = open('missing_pairs_h_sys.txt', 'a')
-    count = 0
+
+    #count = 0
     # count_pairs = 0
     # count_h_pairs = 0
     # not_found_keys = []
     help_dict = {}
-    for key in nc_scores_over_beta:
+    for count, key in enumerate(nc_scores_over_beta):
 
         # if key in SyS_values:
         h = get_nc_hits(nc_scores_over_beta, key[0], key[1], sys_values, help_dict)
@@ -134,38 +144,44 @@ def refined_synteny_score(sys_values, nc_file, beta):
         top_r = np.zeros(len(h))
         bottom_l = np.zeros(len(h))
         bottom_r = np.zeros(len(h))
-        idx = 0
+        #idx = 0
         # print("H: ", h, "\n")
-        for i in h:
+        for idx, i in enumerate(h):
             top_l[idx] = sys_values[(key[0], i)] - averages[key[0]][1] / averages[key[0]][0]
             top_r[idx] = sys_values[(key[1], i)] - averages[key[1]][1] / averages[key[1]][0]
             bottom_l[idx] = (sys_values[(key[0], i)] - averages[key[0]][1] / averages[key[0]][0]) ** 2
             bottom_r[idx] = (sys_values[(key[1], i)] - averages[key[1]][1] / averages[key[1]][0]) ** 2
-            idx += 1
+            #idx += 1
         # print("top_l: ", top_l, "\n")
         # print("top_r: ", top_r, "\n")
         # print("bottom_l: ", bottom_l, "\n")
         # print("bottom_r: ", bottom_r, "\n")
 
         if len(h) != 0:
-            result = np.dot(top_l, top_r) / math.sqrt(np.sum(bottom_l) * np.sum(bottom_r))
-            f.write(key[0] + "\t" + key[1] + "\t" + str(result) + "\n")  # write to file
+            try:
+                result = np.dot(top_l, top_r) / math.sqrt(np.sum(bottom_l) * np.sum(bottom_r))
+                f.write(key[0] + "\t" + key[1] + "\t" + str(result) + "\n")  # write to file
+            except:
+                # if any errors occur when calculating result
+                # (such as division zero or becomes too close to 0 for the program to handle),
+                # then don't add that entry to the resulting file.
+                pass
 
-        count += 1
+
+        #count += 1
 
         # syc_scores.append()
-        # f.write(key[0] + "\t" + key[1] + "\t" + str(val) + "\n")  # write to file
 
-        if count % 500000 == 0:
-            print(count, "of ", len(nc_scores_over_beta))
-            print("size of help_dict: ", sys.getsizeof(help_dict))
+        #if count % 500000 == 0:
+        #    print(count, "of ", len(nc_scores_over_beta))
+        #    print("size of help_dict: ", sys.getsizeof(help_dict))
 
     f.close()
-    g.close()
-    k.close()
+
 
     elapsed_time = time.process_time() - t5
     print("SyC calc. complete. took: ", elapsed_time)
     print("#Nr SyC entries:", count)
-    print("Total size of help_dict: ", sys.getsizeof(help_dict))
+    print("#elements in nc_scores_over_beta: ", len(nc_scores_over_beta))
+    #print("Total size of help_dict: ", sys.getsizeof(help_dict))
     # print("#mis pairs not in SyS:", len(not_found_keys))

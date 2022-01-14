@@ -2,10 +2,6 @@ import sys
 import time
 
 
-def main(argv):
-    synteny_score()
-
-
 def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
     neighberhood = []
 
@@ -40,7 +36,7 @@ def pre_calc_neighborhoods(synteny1, synteny2, k):
     return gene_neighborhoods1, gene_neighborhoods2
 
 
-def synteny_score(querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_locs.txt', NC_scores='nc.txt', k=5):
+def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
 
     Synteny1 = []
 
@@ -131,6 +127,3 @@ def synteny_score(querySyntenyFile1='human_locs.txt', querySyntenyFile2='mouse_l
     #print("size(mem) of synteny2_neighbors: ", sys.getsizeof(SyS_values))
 
     return SyS_values
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
