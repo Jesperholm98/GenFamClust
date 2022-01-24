@@ -6,6 +6,14 @@ import os.path
 
 
 def help_get_nchits(nc_hits_over_beta, gene, sys_values, help_dict):
+    """
+    this is a help function which adds all gene hits with one gene X to a list and adds it in help_dict for future calculations.
+    :param nc_hits_over_beta: filename for file containing nc values over beta
+    :param gene: looking for a specific gene id
+    :param sys_values: dictionary with all sys values.
+    :param help_dict: accumulative dictonary to save previously calculated values.
+    :return:
+    """
 
     alist = []
     for keys in nc_hits_over_beta:
@@ -17,6 +25,15 @@ def help_get_nchits(nc_hits_over_beta, gene, sys_values, help_dict):
 
 
 def get_nc_hits(nc_over_beta, gene1, gene2, sys_values, help_nchits):
+    """
+    this function returns the intersection of nchits of both each genes.
+    :param nc_over_beta: filename for file containing nc values over beta
+    :param gene1: a gene id
+    :param gene2: a gene id
+    :param sys_values: dictionary with sys values
+    :param help_nchits: accumulative dictonary to save previously calculated values.
+    :return: returns the intersection of two sets, nchits1 and nchits2.
+    """
     nchits1 = []
     nchits2 = []
 
@@ -36,13 +53,20 @@ def get_nc_hits(nc_over_beta, gene1, gene2, sys_values, help_nchits):
 
 
 def calc_average_sys_score_over_ncbeta(nc_over_beta):
+    """
+    this function calculates the average nc score for a certain gene x with all other genes with score >= beta
+    :param nc_over_beta: filename that contains nc scores >= beta
+    :return: returns a dictionary with each gene's average nc score for all other pairs.
+    """
     averages = {}
 
+    # add all genes to the dictionary
     for key in nc_over_beta:
         averages[key[0]] = [0, 0.0]
         averages[key[1]] = [0, 0.0]
 
     # count = 0
+    # for all genes in file add their score and the number of times the gene occurs to calculate mean.
     with open('./Data/sys.txt', 'r') as file:
         for lines in file:
             # count += 1
@@ -62,7 +86,13 @@ def calc_average_sys_score_over_ncbeta(nc_over_beta):
     return averages
 
 
-def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
+def extract_nc_over_beta(nc_file='nc.txt', beta=0.3):
+    """
+    this function writes all pairs of genes with nc score >= beta to a new file
+    :param nc_file: filename of file with all nc scores(default 'nc.txt' that have to be located in /Data/ folder)
+    :param beta: a threshhold to filter away unwanted gene pairs with low similarity.
+    :return: doesn't return anything.
+    """
     f = open('./Data/nc_over_beta.txt', 'a')
     try:
         count = 0
@@ -70,7 +100,7 @@ def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
         with open('./Data/' + nc_file, 'r') as file:
             for lines in file:
                 lines = lines.split()
-                if float(lines[2]) > beta:
+                if float(lines[2]) >= beta:
                     f.write(lines[0] + "\t" + lines[1] + "\t" + lines[2] + "\n")
                     count += 1
         f.close()
@@ -82,10 +112,18 @@ def extract_nc_over_beta(nc_file='nc.txt', beta=0.5):
 
 
 def refined_synteny_score(sys_values, nc_file, beta):
+    """
+    the "main" funtion for calculating  syc score.
+    :param sys_values: a dictionary of sys value for genes
+    :param nc_file: the name of the nc file(to read nc values from)
+    :param beta: a minimum threshold to include nc values.
+    :return:
+    """
 
     t2 = time.process_time()
     nc_over_beta_exist = os.path.isfile('./Data/nc_over_beta.txt')
 
+    # if this has been calculated already, then just load that file.
     if nc_over_beta_exist:
         pass
     else:
@@ -94,6 +132,7 @@ def refined_synteny_score(sys_values, nc_file, beta):
 
     nc_scores_over_beta = {}
 
+    # load nc file into memory
     with open('./Data/nc_over_beta.txt', 'r') as file:
         for lines in file:
             lines = lines.split()
@@ -124,7 +163,7 @@ def refined_synteny_score(sys_values, nc_file, beta):
     # print("size of nc_scores_over_beta: ", sys.getsizeof(nc_scores_over_beta))
 
 
-    syc_scores = []
+    #syc_scores = []
 
     f = open('./Data/syc.txt', 'a')
     print("Starting SyC calculation.")
@@ -135,6 +174,8 @@ def refined_synteny_score(sys_values, nc_file, beta):
     # count_h_pairs = 0
     # not_found_keys = []
     help_dict = {}
+
+    # for each pair with nc value > beta, get a set of genes to include in the calculation
     for count, key in enumerate(nc_scores_over_beta):
 
         # if key in SyS_values:
@@ -146,6 +187,8 @@ def refined_synteny_score(sys_values, nc_file, beta):
         bottom_r = np.zeros(len(h))
         #idx = 0
         # print("H: ", h, "\n")
+
+        # loop over the set of genes to insert them into numpy arrays for the calculation
         for idx, i in enumerate(h):
             top_l[idx] = sys_values[(key[0], i)] - averages[key[0]][1] / averages[key[0]][0]
             top_r[idx] = sys_values[(key[1], i)] - averages[key[1]][1] / averages[key[1]][0]
@@ -157,6 +200,7 @@ def refined_synteny_score(sys_values, nc_file, beta):
         # print("bottom_l: ", bottom_l, "\n")
         # print("bottom_r: ", bottom_r, "\n")
 
+        # makes sure the set isn't empty(otherwise it could divide by 0).
         if len(h) != 0:
             try:
                 result = np.dot(top_l, top_r) / math.sqrt(np.sum(bottom_l) * np.sum(bottom_r))
@@ -181,7 +225,7 @@ def refined_synteny_score(sys_values, nc_file, beta):
 
     elapsed_time = time.process_time() - t5
     print("SyC calc. complete. took: ", elapsed_time)
-    print("#Nr SyC entries:", count)
-    print("#elements in nc_scores_over_beta: ", len(nc_scores_over_beta))
+    #print("#Nr SyC entries:", count)
+    #print("#elements in nc_scores_over_beta: ", len(nc_scores_over_beta))
     #print("Total size of help_dict: ", sys.getsizeof(help_dict))
     # print("#mis pairs not in SyS:", len(not_found_keys))

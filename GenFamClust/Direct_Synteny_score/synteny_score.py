@@ -3,6 +3,13 @@ import time
 
 
 def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
+    """
+    :param alist: a synteny list.
+    :param gene_idx: index of current gene to get neighborhood for
+    :param idx_from: start from which index to include genes inside the neighborhood
+    :param idx_to: final index to include genes for neighborhood
+    :return: returns a list with whole neighborhood for a specific gene.
+    """
     neighberhood = []
 
     try:
@@ -16,6 +23,12 @@ def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
 
 
 def pre_calc_neighborhoods(synteny1, synteny2, k):
+    """
+    :param synteny1: synteny file for first genome
+    :param synteny2: synteny file for second genome
+    :param k: size of neighborhood(#genes up and down from a certain gene in respective synteny file)
+    :return: the neighborhoods for all genes in both synteny files
+    """
     gene_neighborhoods1 = {}
     gene_neighborhoods2 = {}
 
@@ -37,9 +50,17 @@ def pre_calc_neighborhoods(synteny1, synteny2, k):
 
 
 def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
+    """
+    :param querySyntenyFile1: synteny file for first genome
+    :param querySyntenyFile2: synteny file for reference genome
+    :param NC_scores: dictionary consisting of nc scores for genes
+    :param k: size of neighborhood for a gene
+    :return: returns a dictionary of sys scores for genes
+    """
 
     Synteny1 = []
 
+    # load a list of genes from first genome
     with open('./Data/' + querySyntenyFile1, 'r') as file:
         for lines in file:
             lines = lines.split()
@@ -56,6 +77,7 @@ def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
 
     Synteny2 = []
 
+    # load a list of genes from first genome
     with open('./Data/' + querySyntenyFile2, 'r') as file:
         for lines in file:
             lines = lines.split()
@@ -70,7 +92,6 @@ def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
 
     print("SyntenyFile2 finished loading.")
     print("Synteny2 has: ", len(Synteny2), " elements.\n")
-
 
     # load NC file into a dict.
     print("start loading NC_pairs...")
@@ -89,7 +110,7 @@ def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
 
     SyS_values = {}
 
-    #pre-calc neighborhoods
+    # pre-calc neighborhoods to reduce runtime
     print("Starting pre-calc for SyS...")
     t = time.process_time()
     synteny1_neighbors, synteny2_neighbors = pre_calc_neighborhoods(Synteny1, Synteny2, k)
@@ -99,6 +120,7 @@ def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
     print("Starting SyS calculation...")
     f = open('./Data/sys.txt', 'a')
     t = time.process_time()
+    # for each pair genes, get their respective neighborhood and select the highest nc-value pair in their neighborhoods
     for gene1 in Synteny1:
         for gene2 in Synteny2:
 

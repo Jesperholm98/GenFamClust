@@ -2,6 +2,12 @@ import time
 
 
 def infer_homology(syc_file='syc.txt', nc_file='nc.txt'):
+    """
+    This is the "main" function for infering homology. The result gets written to a result file: "homolog_genes.txt"
+    :param syc_file: filename for file containing syc values
+    :param nc_file: filename for file containing nc values
+    :return: no return value.
+    """
     t = time.process_time()
 
     nc_dict = {}
