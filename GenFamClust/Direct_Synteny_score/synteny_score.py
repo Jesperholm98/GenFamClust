@@ -1,9 +1,10 @@
-import sys
 import time
+import os.path
 
 
 def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
     """
+    this is a help function to pre_calc_neighborhoods
     :param alist: a synteny list.
     :param gene_idx: index of current gene to get neighborhood for
     :param idx_from: start from which index to include genes inside the neighborhood
@@ -15,7 +16,8 @@ def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
     try:
         for idx in range(idx_from, idx_to):
             if alist[idx][0] == alist[gene_idx][0]:
-                neighberhood.append(alist[idx][1])
+                # make sure only genes from same chromosome are added
+                neighberhood.append(int(alist[idx][1]))
     except:
         print("Some error occured in calc_neighberhood.")
 
@@ -24,8 +26,9 @@ def calc_neighberhood(alist, gene_idx, idx_from, idx_to):
 
 def pre_calc_neighborhoods(synteny1, synteny2, k):
     """
-    :param synteny1: synteny file for first genome
-    :param synteny2: synteny file for second genome
+    This function calculates the neighborhood of size k for all genes in synteny1 and synteny2.
+    :param synteny1: synteny list for first genome
+    :param synteny2: synteny list for second genome
     :param k: size of neighborhood(#genes up and down from a certain gene in respective synteny file)
     :return: the neighborhoods for all genes in both synteny files
     """
@@ -49,103 +52,196 @@ def pre_calc_neighborhoods(synteny1, synteny2, k):
     return gene_neighborhoods1, gene_neighborhoods2
 
 
+def data_preprocessing(querySyntenyFile1, querySyntenyFile2):
+    """
+    This function makes sure no duplicates genes exist within a genome, and also gives indexes the remaining genes for future usage.
+    :param querySyntenyFile1: input Synteny file for first genome.
+    :param querySyntenyFile2: input Synteny file for second genome.
+    :return: returns a dictionary with an index for a certain gene to be able to convert string gene identifier to an integer for efficiency(both memory and speed).
+    """
+
+    indexing = {}
+
+    t = time.process_time()
+    f = open('./Data/genome1_genes.txt', 'w')
+    g = open('./Data/genome2_genes.txt', 'w')
+
+    genome1 = set()
+    genome2 = set()
+    count = 1
+
+    # indexing first genome
+    with open('./Data/' + querySyntenyFile1, 'r') as file:
+        for lines in file:
+            lines = lines.split()
+            if len(lines) == 3:
+                if lines[2] in genome1:
+                    pass
+                else:
+                    f.write(lines[0] + "\t" + str(count) + "\t" + lines[2] + "\n")
+                    indexing[lines[2]] = count
+                    count += 1
+                    genome1.add(lines[2])
+    f.close()
+
+    # indexing second genome
+    with open('./Data/' + querySyntenyFile2, 'r') as file:
+        for lines in file:
+            lines = lines.split()
+            if len(lines) == 3:
+                if lines[2] in genome2:
+                    pass
+                else:
+                    g.write(lines[0] + "\t" + str(count) + "\t" + lines[2] + "\n")
+                    indexing[lines[2]] = count
+                    count += 1
+                    genome2.add(lines[2])
+    g.close()
+    elapsed_time = time.process_time() - t
+    print("time to preprocess query files: ", elapsed_time, " seconds.")
+    return indexing
+
+
 def synteny_score(querySyntenyFile1, querySyntenyFile2, NC_scores, k):
     """
+    This is the main function for calculating SyS scores.
     :param querySyntenyFile1: synteny file for first genome
     :param querySyntenyFile2: synteny file for reference genome
     :param NC_scores: dictionary consisting of nc scores for genes
     :param k: size of neighborhood for a gene
-    :return: returns a dictionary of sys scores for genes
+    :return: returns a dictionary to convert string gene identifier to respective integer gene identifier.
     """
+    sys_file_exist = os.path.isfile('./Data/sys.txt')
 
-    Synteny1 = []
+    indexing_dict = data_preprocessing(querySyntenyFile1, querySyntenyFile2)
 
-    # load a list of genes from first genome
-    with open('./Data/' + querySyntenyFile1, 'r') as file:
-        for lines in file:
-            lines = lines.split()
+    # if this has been calculated already, then just load that file.
+    if sys_file_exist:
+        # sys file already exist.
+        print("sys file already exist. Either move or delete the existing sys.txt in th Data folder. Moving on to next module.")
+        return indexing_dict
+    else:
+        # no sys file exist so create and calculate sys values and write them to file.
+        Synteny1 = []
 
-            if len(lines) == 3:
-                # only keep the lines where there exist values in all three columns
-
-                # Synteny1.append(lines)  #<--- for saving all three columns <chromosone> <order_nr> <gene_id>
-                del lines[1]  # remove 2nd column because its not needed for calculation
+        # load a list of genes from first genome
+        with open('./Data/genome1_genes.txt', 'r') as file:
+            for lines in file:
+                lines = lines.split()
+                del lines[2]
+                lines[1] = int(lines[1])
                 Synteny1.append(lines)
 
-    print("SyntenyFile1 finished loading.")
-    print("Synteny1 has: ", len(Synteny1), " elements.\n")
+        print("SyntenyFile1 finished loading.")
+        print("Synteny1 has: ", len(Synteny1), " genes.\n")
 
-    Synteny2 = []
+        Synteny2 = []
 
-    # load a list of genes from first genome
-    with open('./Data/' + querySyntenyFile2, 'r') as file:
-        for lines in file:
-            lines = lines.split()
-
-            if len(lines) == 3:
-                # only keep the lines where there exist values in all three columns
-
-                # Synteny2.append(lines)  #<--- for saving all three columns <chromosone> <order_nr> <gene_id>
-                del lines[1]  # remove 2nd column because its not needed for calculation
+        # load a list of genes from first genome
+        with open('./Data/genome2_genes.txt', 'r') as file:
+            for lines in file:
+                lines = lines.split()
+                del lines[2]
+                lines[1] = int(lines[1])
                 Synteny2.append(lines)
 
+        print("SyntenyFile2 finished loading.")
+        print("Synteny2 has: ", len(Synteny2), " genes.\n")
 
-    print("SyntenyFile2 finished loading.")
-    print("Synteny2 has: ", len(Synteny2), " elements.\n")
+        # load NC file into a dict.
+        print("start loading NC_pairs...")
+        t1 = time.process_time()
+        nc_dict = {}
+        with open('./Data/' + NC_scores, 'r') as file:
+            for lines in file:
+                lines = lines.split()
 
-    # load NC file into a dict.
-    print("start loading NC_pairs...")
-    t1 = time.process_time()
-    nc_dict = {}
+                try:
+                    nc_dict[(indexing_dict[lines[0]], indexing_dict[lines[1]])] = float(lines[2])
+                except:
+                    # data mismatch between nc and rest of program(most likely genes in nc not found in synteny) so ignore those entries.
+                    pass
 
-    with open('./Data/' + NC_scores, 'r') as file:
-        for lines in file:
-            lines = lines.split()
+        print("finished loading # of NC_pairs: ", len(nc_dict))
 
-            nc_dict[(lines[0], lines[1])] = float(lines[2])
+        elapsed_time = time.process_time() - t1
+        print("seconds to load NC-data: ", elapsed_time)
 
-    print("finished loading NC_pairs...")
-    elapsed_time = time.process_time() - t1
-    print("seconds to load NC-data: ", elapsed_time)
+        # pre-calc neighborhoods to reduce runtime
+        print("Starting pre-calc for SyS...")
+        t = time.process_time()
+        synteny1_neighbors, synteny2_neighbors = pre_calc_neighborhoods(Synteny1, Synteny2, k)
 
-    SyS_values = {}
+        elapsed_time = time.process_time() - t
+        print("Finished pre-calc SyS, took: ", elapsed_time)
 
-    # pre-calc neighborhoods to reduce runtime
-    print("Starting pre-calc for SyS...")
-    t = time.process_time()
-    synteny1_neighbors, synteny2_neighbors = pre_calc_neighborhoods(Synteny1, Synteny2, k)
-    elapsed_time = time.process_time() - t
-    print("Finished pre-calc SyS, took: ", elapsed_time)
+        print("Starting SyS calculation...")
+        f = open('./Data/sys.txt', 'a')
+        t1 = time.process_time()
 
-    print("Starting SyS calculation...")
-    f = open('./Data/sys.txt', 'a')
-    t = time.process_time()
-    # for each pair genes, get their respective neighborhood and select the highest nc-value pair in their neighborhoods
-    for gene1 in Synteny1:
-        for gene2 in Synteny2:
+        # calculate genome1 * genome2 genepairs
+        for gene1 in Synteny1:
+            for gene2 in Synteny2:
 
-            neighborhood1 = synteny1_neighbors[gene1[1]]
-            neighborhood2 = synteny2_neighbors[gene2[1]]
-            nc_max = 0
+                neighborhood1 = synteny1_neighbors[gene1[1]]
+                neighborhood2 = synteny2_neighbors[gene2[1]]
 
-            for a in neighborhood1:
-                for b in neighborhood2:
-                    if (a, b) in nc_dict:
-                        nc_max = max(nc_dict[(a, b)], nc_max)
+                nc_max = 0
 
-            if nc_max > 0:
-                f.write(gene1[1] + "\t" + gene2[1] + "\t" + str(nc_max) + "\n")
-                SyS_values[(gene1[1], gene2[1])] = nc_max
-    f.close()
+                for a in neighborhood1:
+                    for b in neighborhood2:
+                        if (a, b) in nc_dict:
+                            nc_max = max(nc_dict[(a, b)], nc_max)
 
-    elapsed_time = time.process_time() - t
-    print("finished SyS calc, took: ", elapsed_time)
+                if nc_max > 0:
+                    f.write(str(gene1[1]) + "\t" + str(gene2[1]) + "\t" + str(nc_max) + "\n")
+                    #SyS_values[(gene1[1], gene2[1])] = nc_max
 
-    #print("size(mem) of synteny1_neighbors: ", sys.getsizeof(synteny1_neighbors))
-    #print("size(mem) of synteny2_neighbors: ", sys.getsizeof(synteny2_neighbors))
-    #print("size(len) of synteny1_neighbors: ", len(synteny1_neighbors))
-    #print("size(len) of synteny2_neighbors: ", len(synteny2_neighbors))
-    #print("size(length) of SyS_values: ", len(SyS_values))
-    #print("size(mem) of synteny2_neighbors: ", sys.getsizeof(SyS_values))
+        elapsed_time = time.process_time() - t1
+        print("genepairs synteny1*synteny2 took: ", elapsed_time)
 
-    return SyS_values
+        t2 = time.process_time()
+        # calculate genome1 * genome1 genepairs.
+        for idx, el in enumerate(Synteny1):
+            neighborhood1 = synteny1_neighbors[el[1]]
+            for idxx in range(idx + 1, len(Synteny1)):
+                neighborhood2 = synteny1_neighbors[Synteny1[idxx][1]]
+
+                nc_max = 0
+
+                for a in neighborhood1:
+                    for b in neighborhood2:
+                        if (a, b) in nc_dict:
+                            nc_max = max(nc_dict[(a, b)], nc_max)
+
+                if nc_max > 0:
+                    f.write(str(el[1]) + "\t" + str(Synteny1[idxx][1]) + "\t" + str(nc_max) + "\n")
+                    #SyS_values[(el[1], Synteny1[idxx][1])] = nc_max
+        elapsed_time = time.process_time() - t2
+        print("genepairs synteny1*synteny1 took: ", elapsed_time)
+
+        t3 = time.process_time()
+        # calculate genome2 * genome2 genepairs
+        for idx, el in enumerate(Synteny2):
+            neighborhood1 = synteny2_neighbors[el[1]]
+            for idxx in range(idx + 1, len(Synteny2)):
+                neighborhood2 = synteny2_neighbors[Synteny2[idxx][1]]
+
+                nc_max = 0
+
+                for a in neighborhood1:
+                    for b in neighborhood2:
+                        if (a, b) in nc_dict:
+                            nc_max = max(nc_dict[(a, b)], nc_max)
+
+                if nc_max > 0:
+                    f.write(str(el[1]) + "\t" + str(Synteny2[idxx][1]) + "\t" + str(nc_max) + "\n")
+                    #SyS_values[(el[1], Synteny2[idxx][1])] = nc_max
+        f.close()
+        elapsed_time = time.process_time() - t3
+        print("genepairs synteny2*synteny2 took: ", elapsed_time)
+
+        elapsed_time = time.process_time() - t
+        print("SyS calculation complete. Whole module took: ", elapsed_time)
+
+    return indexing_dict
